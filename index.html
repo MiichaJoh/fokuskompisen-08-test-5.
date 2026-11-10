@@ -179,6 +179,17 @@ body[data-theme="dark"] #resetPasswordButton { color: #e6d5ff; }
   color: #30263b !important;
 }
 
+
+/* 0.8 testfix: tydlig kontrast i Idébanken i alla teman */
+#smartIdeasPanel, #smartIdeasPanel h3, #smartIdeasPanel p,
+#smartIdeasPanel label, #smartResult, #smartResult li,
+#ideasPage #premiumIdeas08, #ideasPage #premiumIdeas08 h3,
+#ideasPage #premiumIdeas08 p { color: #30263b !important; }
+#smartIdeasPanel, #ideasPage #premiumIdeas08 { background: #f7f3fc !important; }
+#smartResult { background: #ffffff !important; }
+#smartCategory { background: #454259 !important; color: #ffffff !important; }
+#ideaBackControls { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+#ideaBackControls button { margin: 0; }
 </style>
 </head>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -261,8 +272,8 @@ body[data-theme="dark"] #resetPasswordButton { color: #e6d5ff; }
 <label for="smartCategory">Vad vill du ha hjälp med?</label>
 <select id="smartCategory" style="display:block;width:100%;max-width:420px;padding:10px;margin:8px 0 12px;border-radius:9px"><option value="home">🏠 Hem och vardag</option><option value="planning">📅 Planering</option><option value="energy">🌿 Energi och ork</option><option value="language">📖 Språk och förståelse</option></select>
 <div id="smartOptions" class="actions" aria-label="Välj ett förslag"></div>
-<div id="smartResult" class="panel" role="status" aria-live="polite">Välj ett förslag ovan för att få små, konkreta steg.</div></div>
-<div class="panel"><h3>💜 Fokuskompisen AI Premium – kommer senare</h3><p>Planerad AI-chatt med valbar personlighet, svarslängd och frivilligt minne. Målpris 29 kr/månad, om kostnaderna tillåter.</p><p>Ingen betalning eller AI-anslutning finns i denna testversion.</p></div>
+<div id="smartResult" class="panel" role="status" aria-live="polite">Välj ett förslag ovan för att få små, konkreta steg.</div><div id="ideaBackControls"><button type="button" id="backToIdeas08" class="alt">← Till Idébanken</button><button type="button" id="backToHome08" class="alt">⌂ Till startsidan</button></div></div>
+<div class="panel" id="premiumIdeas08"><h3>💜 Fokuskompisen AI Premium – kommer senare</h3><p>Planerad AI-chatt med valbar personlighet, svarslängd och frivilligt minne. Målpris 29 kr/månad, om kostnaderna tillåter.</p><p>Ingen betalning eller AI-anslutning finns i denna testversion.</p></div>
 </section>
 <section id="settingsPage">
   <h2>⚙️ Inställningar</h2>
@@ -759,6 +770,13 @@ function renderSmartIdeas08() {
   options.append(button);
  }
 }
+document.getElementById("backToIdeas08").addEventListener("click", () => {
+  // Stanna på Idébanken och behåll vald kategori, men visa förslagen igen.
+  showPage("ideas");
+  renderSmartIdeas08();
+  document.getElementById("smartIdeasPanel").scrollIntoView({block:"start"});
+});
+document.getElementById("backToHome08").addEventListener("click", () => {showPage("home");window.scrollTo(0,0);});
 document.getElementById("smartCategory").addEventListener("change",renderSmartIdeas08);
 renderSmartIdeas08();
 

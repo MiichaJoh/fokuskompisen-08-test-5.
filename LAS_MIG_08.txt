@@ -5,3 +5,5 @@ Ladda upp index.html, sw.js och manifest.webmanifest till ett NYTT GitHub-reposi
 Nytt: Den gamla Idébanken finns kvar. Smarta förslag med fyra kategorier och steg-för-steg-hjälp fungerar offline. AI Premium är endast en informationsruta; ingen AI-anslutning eller betalning.
 
 OBS: 0.8 kör på en annan webbadress och kan därför inte automatiskt läsa 0.7:s lokala webbläsardata. Kontrollera säkerhetskopia och kontosynk innan du använder den för riktiga uppgifter.
+
+TESTFIX: Förbättrad läsbarhet i Idébanken samt separata knappar Till Idébanken och Till startsidan. Till Idébanken behåller vald kategori.
