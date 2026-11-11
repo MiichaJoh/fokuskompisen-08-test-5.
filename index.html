@@ -108,6 +108,12 @@ body:not([data-theme="dark"]) #mainMenu {
 body:not([data-theme="dark"]) #mainMenu button {
   color: var(--theme-text);
 }
+    /* Prioritetsgrupper: kolumner på större skärmar, staplade på mobil. */
+#tasks.task-columns08 { display:grid; grid-template-columns:1fr; gap:12px; align-items:start; }
+#tasks.task-columns08 > .task-priority-group08 { margin:0; min-width:0; }
+#tasks .task-group-content08 > .panel { overflow-wrap:anywhere; }
+#tasks .task-priority-group08 summary { list-style-position:inside; }
+@media (min-width:850px) { #tasks.task-columns08 { grid-template-columns:repeat(3,minmax(0,1fr)); } }
     /* Läsbar text i ljusa rutor */
 body[data-theme="dark"] #dailyPage li,
 body[data-theme="dark"] #dailyPage p {
@@ -671,12 +677,41 @@ function energy(){
   document.querySelectorAll("[data-energy]").forEach(b=>b.classList.toggle("selected",b.dataset.energy===state.energy));
   $("message").textContent=state.energy==="low"?"Vid låg energi kan du välja en enda liten sak, eller vila.":state.energy==="medium"?"Välj det som känns rimligt för dig.":state.energy==="high"?"Du har energi just nu – planera gärna in en paus också.":"Du behöver inte göra allt idag.";
 }
+// Behåll öppna stegpaneler när uppgifterna ritas om.
+const expandedTaskSteps08 = new Set();
+const collapsedTaskGroups08 = new Set();
+function openTaskSteps08(taskId) {
+  showPage("steps");
+  const chooser = $("choose");
+  chooser.value = String(taskId);
+  renderSteps();
+  window.scrollTo(0, 0);
+}
 function render(){
     updateHomeTasks();
 updateHomeReminders();
-  const box=$("tasks");box.innerHTML="";
+  const box=$("tasks");box.innerHTML="";box.classList.add("task-columns08");
   if(!state.tasks.length)box.innerHTML='<p class="panel">Inga uppgifter ännu.</p>';
-  state.tasks.forEach(t=>{
+  const taskGroups=[...Object.entries(priorities),["done","Avklarade uppgifter"]];
+  taskGroups.forEach(([priority,label])=>{
+    const items=state.tasks.filter(t=>priority==="done"?!!t.done:!t.done&&t.priority===priority);
+    const group=document.createElement("details");
+    group.className="panel task-priority-group08";
+    group.open=!collapsedTaskGroups08.has(priority);
+    group.addEventListener("toggle",()=>{
+      if(group.open)collapsedTaskGroups08.delete(priority);
+      else collapsedTaskGroups08.add(priority);
+    });
+    const heading=document.createElement("summary");
+    heading.textContent=label+" ("+items.length+")";
+    heading.style.cssText="font-weight:700;cursor:pointer;padding:6px 0;";
+    group.append(heading);
+    const groupContent=document.createElement("div");
+    groupContent.className="task-group-content08";
+    group.append(groupContent);
+    box.append(group);
+    if(!items.length){const empty=document.createElement("p");empty.className="small";empty.textContent="Inga uppgifter här just nu.";groupContent.append(empty);}
+    items.forEach(t=>{
     const div=document.createElement("div");div.className="panel"+(t.done?" done":"");
     div.innerHTML='<strong>'+esc(t.name)+'</strong><p class="small">'+esc(question(t.name))+'</p><div class="flex"><div><label>Prioritet</label><select class="p">'+Object.entries(priorities).map(([k,v])=>'<option value="'+k+'" '+(t.priority===k?"selected":"")+'>'+v+'</option>').join("")+'</select></div><div><label>Datum</label><input class="d" type="date" value="'+esc(t.date||"")+'"></div><div><label>Upprepning</label><select class="r">'+Object.entries(repeats).map(([k,v])=>'<option value="'+k+'" '+((t.repeat||"none")===k?"selected":"")+'>'+v+'</option>').join("")+'</select></div><div><label>Påminnelse i appen</label><input class="time" type="time" value="'+esc(t.remind||"")+'"></div></div><div class="actions"><button class="alt donebtn">'+(t.done?"Ångra klar":"Markera klar")+'</button><button class="alt editbtn">✏️ Redigera</button><button class="alt del">Ta bort</button></div>';
         div.querySelector(".editbtn").onclick=()=>{
@@ -706,7 +741,46 @@ updateHomeReminders();
       save();render()
     };
     div.querySelector(".del").onclick=()=>{if(!confirm("Ta bort uppgiften?"))return;state.tasks=state.tasks.filter(x=>x!==t);save();render()};
-    box.append(div);
+    // Visa samma små steg som på sidan Små steg, utan att skapa nya datafält.
+    const stepsActions=document.createElement("div");
+    stepsActions.className="actions";
+    const toggle=document.createElement("button");
+    toggle.type="button";toggle.className="alt";
+    toggle.textContent=expandedTaskSteps08.has(String(t.id))?"👣 Dölj små steg":"👣 Visa små steg";
+    const open=document.createElement("button");
+    open.type="button";open.className="alt";
+    open.textContent="↗ Öppna Små steg";
+    open.onclick=()=>openTaskSteps08(t.id);
+    stepsActions.append(toggle,open);
+    div.append(stepsActions);
+    const stepPanel=document.createElement("div");
+    stepPanel.className="panel";
+    stepPanel.hidden=!expandedTaskSteps08.has(String(t.id));
+    const drawInlineSteps=()=>{
+      stepPanel.replaceChildren();
+      if(!Array.isArray(t.stepsDone))t.stepsDone=[];
+      const steps=Array.isArray(t.customSteps)&&t.customSteps.length?t.customSteps:smallSteps(t.name);
+      steps.forEach((step,i)=>{
+        const label=document.createElement("label");
+        label.style.display="block";label.style.fontWeight="normal";
+        const checkbox=document.createElement("input");
+        checkbox.type="checkbox";checkbox.checked=!!t.stepsDone[i];
+        checkbox.onchange=()=>{t.stepsDone[i]=checkbox.checked;save();};
+        label.append(checkbox,document.createTextNode(" "+step));
+        stepPanel.append(label);
+      });
+    };
+    drawInlineSteps();
+    toggle.onclick=()=>{
+      const id=String(t.id);
+      if(expandedTaskSteps08.has(id))expandedTaskSteps08.delete(id);
+      else expandedTaskSteps08.add(id);
+      stepPanel.hidden=!expandedTaskSteps08.has(id);
+      toggle.textContent=stepPanel.hidden?"👣 Visa små steg":"👣 Dölj små steg";
+    };
+    div.append(stepPanel);
+    groupContent.append(div);
+  });
   });
   $("daily").innerHTML="";
   Object.entries(priorities).forEach(([k,label])=>{
