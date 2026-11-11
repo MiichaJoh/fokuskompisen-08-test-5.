@@ -679,7 +679,21 @@ function energy(){
 }
 // Behåll öppna stegpaneler när uppgifterna ritas om.
 const expandedTaskSteps08 = new Set();
-const collapsedTaskGroups08 = new Set();
+// Endast visningsinställningar: hålls separat från uppgifter och molnsynk.
+const TASK_GROUPS_STORAGE_KEY08 = "fokuskompisen08collapsedTaskGroups";
+const TASK_GROUP_IDS08 = ["today", "soon", "later", "done"];
+function readCollapsedTaskGroups08() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TASK_GROUPS_STORAGE_KEY08) || "[]");
+    return new Set(Array.isArray(saved) ? saved.filter(id => TASK_GROUP_IDS08.includes(id)) : []);
+  } catch (_) { return new Set(); }
+}
+const collapsedTaskGroups08 = readCollapsedTaskGroups08();
+function saveCollapsedTaskGroups08() {
+  try {
+    localStorage.setItem(TASK_GROUPS_STORAGE_KEY08, JSON.stringify([...collapsedTaskGroups08]));
+  } catch (_) { /* Grupperna går fortfarande att öppna och stänga. */ }
+}
 function openTaskSteps08(taskId) {
   showPage("steps");
   const chooser = $("choose");
@@ -698,12 +712,15 @@ updateHomeReminders();
     const group=document.createElement("details");
     group.className="panel task-priority-group08";
     group.open=!collapsedTaskGroups08.has(priority);
-    group.addEventListener("toggle",()=>{
-      if(group.open)collapsedTaskGroups08.delete(priority);
-      else collapsedTaskGroups08.add(priority);
-    });
     const heading=document.createElement("summary");
     heading.textContent=label+" ("+items.length+")";
+    // Klick/Enter/blanksteg på summary ändrar details automatiskt.
+    // Spara först vid användarens handling, inte vid renderingsutlösta toggle-event.
+    heading.addEventListener("click", () => {
+      if (group.open) collapsedTaskGroups08.add(priority);
+      else collapsedTaskGroups08.delete(priority);
+      saveCollapsedTaskGroups08();
+    });
     heading.style.cssText="font-weight:700;cursor:pointer;padding:6px 0;";
     group.append(heading);
     const groupContent=document.createElement("div");
