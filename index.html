@@ -273,6 +273,18 @@ body[data-theme="dark"] #resetPasswordButton { color: #e6d5ff; }
 <select id="smartCategory" style="display:block;width:100%;max-width:420px;padding:10px;margin:8px 0 12px;border-radius:9px"><option value="home">🏠 Hem och vardag</option><option value="planning">📅 Planering</option><option value="energy">🌿 Energi och ork</option><option value="language">📖 Språk och förståelse</option></select>
 <div id="smartOptions" class="actions" aria-label="Välj ett förslag"></div>
 <div id="smartResult" class="panel" role="status" aria-live="polite">Välj ett förslag ovan för att få små, konkreta steg.</div><div id="ideaBackControls"><button type="button" id="backToIdeas08" class="alt">← Till Idébanken</button><button type="button" id="backToHome08" class="alt">⌂ Till startsidan</button></div></div>
+<div class="panel" id="ownPlan08">
+<h3>📝 Min egen uppgift – gratis</h3>
+<p>Skriv vad du vill göra. Fokuskompisen ger enkla steg utifrån färdiga förslag, utan AI eller internet.</p>
+<label for="ownTask08">Vad behöver du hjälp med?</label>
+<textarea id="ownTask08" rows="2" maxlength="150" placeholder="Till exempel: Jag behöver städa sovrummet"></textarea>
+<label for="ownEnergy08">Hur mycket energi har du?</label>
+<select id="ownEnergy08"><option value="low">Lite energi</option><option value="medium" selected>Lagom energi</option><option value="high">Mycket energi</option></select>
+<div class="actions"><button type="button" id="makeOwnPlan08">Skapa min plan</button></div>
+<div id="ownPlanResult08" class="panel" role="status" aria-live="polite" hidden></div>
+<div class="actions"><button type="button" id="saveOwnPlan08" class="alt" hidden>Spara bland Mina uppgifter</button></div>
+<p class="small">Du bestämmer själv vad som är viktigast. Förslag kan vara generella och är inte AI-svar.</p>
+</div>
 <div class="panel" id="premiumIdeas08"><h3>💜 Fokuskompisen AI Premium – kommer senare</h3><p>Planerad AI-chatt med valbar personlighet, svarslängd och frivilligt minne. Målpris 29 kr/månad, om kostnaderna tillåter.</p><p>Ingen betalning eller AI-anslutning finns i denna testversion.</p></div>
 </section>
 <section id="settingsPage">
@@ -720,7 +732,7 @@ function renderSteps(){
   $("steps").innerHTML="";
   if(!t){$("steps").textContent="Välj en uppgift för att få hjälp med små steg.";return}
   if(!Array.isArray(t.stepsDone))t.stepsDone=[];
-  smallSteps(t.name).forEach((s,i)=>{
+  (Array.isArray(t.customSteps) && t.customSteps.length ? t.customSteps : smallSteps(t.name)).forEach((s,i)=>{
     const label=document.createElement("label");label.style.fontWeight="normal";
     const input=document.createElement("input");input.type="checkbox";input.checked=!!t.stepsDone[i];
     input.onchange=()=>{t.stepsDone[i]=input.checked;save()};
@@ -786,6 +798,57 @@ function renderSmartIdeas08() {
   options.append(button);
  }
 }
+// 0.8: Egen uppgift, lokal regelbaserad hjälp. Ingen extern AI eller API-anrop.
+const ownTask08 = document.getElementById("ownTask08");
+const ownEnergy08 = document.getElementById("ownEnergy08");
+const ownResult08 = document.getElementById("ownPlanResult08");
+const ownSave08 = document.getElementById("saveOwnPlan08");
+let generatedOwnPlan08 = null;
+const ownPlanRules08 = [
+  {pattern:/sovrum|städa|städ|dammsug|plocka undan/i, steps:["Välj en liten del av rummet.","Plocka undan några saker.","Lägg smutstvätten där den hör hemma.","Torka av eller dammsug en liten yta.","Ta en paus och välj om du vill fortsätta."]},
+  {pattern:/disk|köket|köksbänk/i, steps:["Välj en liten del av köket.","Samla ihop disken.","Diska några saker eller fyll diskmaskinen.","Torka av en yta.","Ta en paus när du behöver."]},
+  {pattern:/tvätt|tvätta kläder/i, steps:["Samla ihop det viktigaste som behöver tvättas.","Sortera tvätten.","Lägg i en maskin och starta den.","Ta hand om tvätten när den är klar."]},
+  {pattern:/handla|inköp|köpa mat|mataffär/i, steps:["Kontrollera vad som behövs hemma.","Skriv en kort inköpslista.","Bestäm hur och när du kan handla.","Börja med det viktigaste."]},
+  {pattern:/laga mat|middag|lunch|frukost/i, steps:["Välj en enkel måltid.","Se vilka ingredienser du har.","Ta fram det du behöver.","Gör ett moment i taget."]},
+  {pattern:/ringa|telefonsamtal|samtal/i, steps:["Skriv ner vad du vill fråga eller säga.","Ta fram telefonnummer.","Välj en stund att ringa.","Ring och använd anteckningarna som stöd."]},
+  {pattern:/läxa|plugga|studera|skolarbete|läsa/i, steps:["Välj en liten del av uppgiften.","Ta fram det material du behöver.","Arbeta en kort stund.","Pausa och välj nästa del."]},
+  {pattern:/mejl|mail|meddelande|skriva brev/i, steps:["Bestäm vem du ska skriva till.","Skriv kort vad du vill säga.","Läs igenom texten.","Skicka när du är nöjd."]}
+];
+function makeOwnSteps08(text, energy) {
+  const match = ownPlanRules08.find(rule => rule.pattern.test(text));
+  if (!match) return ["Fundera på vad första lilla delen av uppgiften är.", "Ta fram det du behöver.", "Jobba med en liten del i " + (energy === "low" ? "2" : energy === "medium" ? "5" : "10") + " minuter.", "Ta en paus och bestäm om du vill fortsätta."];
+  const steps = match.steps;
+  if (energy === "low") return [steps[0], steps[1], "Ta en paus. Det är okej att stanna här."];
+  if (energy === "medium") return [...steps.slice(0,3), "Ta en paus och välj om du vill fortsätta."];
+  return steps;
+}
+function showOwnPlan08() {
+  const name = ownTask08.value.trim();
+  generatedOwnPlan08 = null;
+  ownSave08.hidden = true;
+  ownResult08.hidden = false;
+  ownResult08.replaceChildren();
+  if (!name) { ownResult08.textContent = "Skriv först vad du vill göra."; return; }
+  const steps = makeOwnSteps08(name, ownEnergy08.value);
+  generatedOwnPlan08 = {name, steps};
+  const heading = document.createElement("strong"); heading.textContent = "Din plan: " + name;
+  const list = document.createElement("ol");
+  steps.forEach(step => {const li = document.createElement("li"); li.textContent = step; list.append(li);});
+  ownResult08.append(heading, list);
+  ownSave08.hidden = false;
+}
+document.getElementById("makeOwnPlan08").addEventListener("click", showOwnPlan08);
+for (const field of [ownTask08,ownEnergy08]) field.addEventListener("input", () => {generatedOwnPlan08=null;ownSave08.hidden=true;});
+ownSave08.addEventListener("click", () => {
+  if (!generatedOwnPlan08) return;
+  if (!activeUserId) { ownResult08.append(document.createTextNode(" Logga in för att spara uppgiften på ditt konto.")); return; }
+  state.tasks.push({id:String(Date.now())+Math.random(),name:generatedOwnPlan08.name,date:"",priority:"soon",repeat:"none",remind:"",done:false,stepsDone:[],customSteps:[...generatedOwnPlan08.steps]});
+  save(); render();
+  ownSave08.hidden=true;
+  const message=document.createElement("p"); message.textContent="✅ Planen är sparad bland Mina uppgifter. Du kan hitta stegen under Små steg.";
+  ownResult08.append(message);
+});
+
 document.getElementById("backToIdeas08").addEventListener("click", () => {
   // Stanna på Idébanken och behåll vald kategori, men visa förslagen igen.
   showPage("ideas");
