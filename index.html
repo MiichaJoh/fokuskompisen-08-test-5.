@@ -337,7 +337,21 @@ const pages = {
     backup: "backupPage",
   settings: "settingsPage"
 };
+  // 0.8: behåll navigeringen när webbläsaren växlar flik eller auth förnyas.
+  const NAV_KEY_08 = "fokuskompisen08navigation";
+  let currentPage08 = "home";
+  function readNav08() {
+    try { return JSON.parse(sessionStorage.getItem(NAV_KEY_08) || "null") || {}; }
+    catch (_) { return {}; }
+  }
+  function rememberNav08(patch) {
+    try { sessionStorage.setItem(NAV_KEY_08, JSON.stringify({...readNav08(), ...patch})); }
+    catch (_) { /* navigeringen fungerar ändå */ }
+  }
   function showPage(page) {
+  if (!Object.hasOwn(pages,page)) page = "home";
+  currentPage08 = page;
+  rememberNav08({page});
   Object.values(pages).forEach(id => {
     const section = document.getElementById(id);
     if (section) {
@@ -754,6 +768,7 @@ const smartIdeas08 = {
 };
 function renderSmartIdeas08() {
  const category = document.getElementById("smartCategory").value;
+ rememberNav08({category, idea: null});
  const options = document.getElementById("smartOptions");
  const result = document.getElementById("smartResult");
  options.replaceChildren();
@@ -761,6 +776,7 @@ function renderSmartIdeas08() {
  for (const [name, steps] of smartIdeas08[category]) {
   const button = document.createElement("button"); button.type="button"; button.className="alt"; button.textContent=name;
   button.addEventListener("click", () => {
+   rememberNav08({category, idea: name});
    result.replaceChildren();
    const title=document.createElement("strong");title.textContent=name;result.append(title);
    const list=document.createElement("ol");
@@ -778,7 +794,14 @@ document.getElementById("backToIdeas08").addEventListener("click", () => {
 });
 document.getElementById("backToHome08").addEventListener("click", () => {showPage("home");window.scrollTo(0,0);});
 document.getElementById("smartCategory").addEventListener("change",renderSmartIdeas08);
+const initialNav08 = readNav08();
+if (smartIdeas08[initialNav08.category]) document.getElementById("smartCategory").value = initialNav08.category;
 renderSmartIdeas08();
+if (initialNav08.idea) {
+  const optionButtons = [...document.querySelectorAll("#smartOptions button")];
+  const match = optionButtons.find(b => b.textContent === initialNav08.idea);
+  if (match) match.click();
+}
 
 ["Drick ett glas vatten","Öppna fönstret en stund","Plocka undan en sak","Skriv ner en tanke","Vila en stund"].forEach(s=>{let b=document.createElement("button");b.className="alt";b.textContent=s;b.onclick=()=>{$("idea").textContent="Liten idé: "+s+". Du väljer själv."};$("ideas").append(b)});
 
@@ -1104,6 +1127,11 @@ function displayAuthState(session) {
   const showApp = loggedIn && !passwordRecoveryActive;
   loginSection.hidden = showApp;
   headerActions.hidden = !showApp;
+  // Supabase kan skicka SIGNED_IN igen när en flik får fokus.
+  // Dölj inte aktuell sida vid en sådan förnyelse av samma konto.
+  const sameAccountVisible = showApp && activeUserId === session.user.id &&
+    !document.getElementById(pages[currentPage08] || "homePage").hidden;
+  if (sameAccountVisible) return;
   mainMenu.hidden = true;
   menuButton.setAttribute("aria-expanded", "false");
   Object.values(pages).forEach(id => {
@@ -1128,7 +1156,14 @@ function displayAuthState(session) {
         }
       }
     }
-    showPage("home");
+    const saved = readNav08();
+    if (saved.userId && saved.userId !== session.user.id) {
+      try { sessionStorage.removeItem(NAV_KEY_08); } catch (_) {}
+      showPage("home");
+    } else {
+      showPage(pages[saved.page] ? saved.page : "home");
+    }
+    rememberNav08({userId: session.user.id});
     document.getElementById("loginPassword").value = "";
   }
 }
@@ -1140,6 +1175,8 @@ fokusSupabase.auth.onAuthStateChange((event, session) => {
     newPasswordMessage.textContent = "Välj ditt nya lösenord. 💜";
   }
   if (event === "SIGNED_OUT") {
+    try { sessionStorage.removeItem(NAV_KEY_08); } catch (_) {}
+    currentPage08 = "home";
     passwordRecoveryActive = false;
     newPasswordSection.hidden = true;
     loginStatus.textContent = "Du har loggat ut. 💜";
