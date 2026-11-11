@@ -371,7 +371,7 @@ menuButton.addEventListener("click", () => {
   mainMenu.hidden = !mainMenu.hidden;
   menuButton.setAttribute("aria-expanded", String(!mainMenu.hidden));
 }); 
-  showPage("home");
+  // Dölj sidorna vid start utan att skriva över senast sparad navigering.
   Object.values(pages).forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; });
 const $=id=>document.getElementById(id);
 const KEY="fokuskompisen07test";
@@ -797,6 +797,7 @@ document.getElementById("smartCategory").addEventListener("change",renderSmartId
 const initialNav08 = readNav08();
 if (smartIdeas08[initialNav08.category]) document.getElementById("smartCategory").value = initialNav08.category;
 renderSmartIdeas08();
+// Återställ förslaget efter att kategorins knappar har skapats.
 if (initialNav08.idea) {
   const optionButtons = [...document.querySelectorAll("#smartOptions button")];
   const match = optionButtons.find(b => b.textContent === initialNav08.idea);
